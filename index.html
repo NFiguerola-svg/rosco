@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>El Juego del Diccionario - TV Show</title>
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background-color: #0f172a; color: #f8fafc; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+
+    /* ========================================================
+       1. VISTA TELEVISOR (HOST)
+       ======================================================== */
+    #vista-tv { display: flex; flex-direction: column; height: 100vh; width: 100%; }
+    
+    header {
+      background: #1e293b; padding: 12px 30px; display: flex; justify-content: space-between;
+      align-items: center; border-bottom: 2px solid #334155;
+    }
+    .titulo-tv { font-size: 26px; font-weight: 900; color: #fbbf24; letter-spacing: 1px; }
+    .sala-badge { font-size: 18px; font-weight: bold; background: #0f172a; padding: 6px 18px; border-radius: 20px; border: 1px solid #475569; color: #38bdf8; }
+
+    main {
+      flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 20px 40px; max-width: 1200px; margin: 0 auto; width: 100%;
+    }
+
+    /* LOBBY / SALA DE ESPERA */
+    .lobby-container {
+      display: grid; grid-template-columns: 320px 1fr; gap: 40px; align-items: center; width: 100%;
+      background: #1e293b; border: 2px solid #334155; border-radius: 16px; padding: 35px; box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+    }
+    .qr-card { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+    .qr-img { width: 180px; height: 180px; background: #fff; padding: 8px; border-radius: 10px; }
+    .codigo-texto { font-size: 28px; font-weight: 900; color: #fbbf24; }
+
+    .equipos-lista-box { display: flex; flex-direction: column; gap: 15px; }
+    .equipos-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; min-height: 140px; }
+    .equipo-badge-tv {
+      background: #0f172a; border: 2px solid #38bdf8; border-radius: 10px; padding: 12px 18px;
+      font-size: 18px; font-weight: 900; color: #f8fafc; display: flex; align-items: center; gap: 10px;
+    }
+
+    .btn-comenzar-partida {
+      padding: 16px; font-size: 22px; font-weight: 900; border: none; border-radius: 10px;
+      background: #16a34a; color: #fff; cursor: pointer; box-shadow: 0 4px 15px rgba(22,163,74,0.4);
+      transition: all 0.2s;
+    }
+    .btn-comenzar-partida:disabled { background: #475569; color: #94a3b8; cursor: not-allowed; box-shadow: none; }
+
+    /* ESCRITURA */
+    .caja-palabra-tv {
+      background: #1e293b; border: 3px solid #fbbf24; border-radius: 16px; padding: 35px 50px;
+      text-align: center; width: 100%; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+    .palabra-gigante { font-size: 64px; font-weight: 900; color: #fbbf24; letter-spacing: 2px; text-transform: uppercase; }
+    .estado-envios { margin-top: 25px; font-size: 22px; font-weight: bold; color: #94a3b8; }
+
+    /* VOTACIÓN */
+    .grilla-opciones-tv {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 20px; width: 100%; margin: 20px 0;
+    }
+    .tarjeta-opcion-tv {
+      background: #1e293b; border: 2px solid #334155; border-radius: 12px; padding: 18px 25px;
+      display: flex; gap: 15px; align-items: flex-start; transition: all 0.3s;
+    }
+    .letra-opcion-badge {
+      width: 44px; height: 44px; background: #0284c7; color: #fff; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 900; flex-shrink: 0;
+    }
+    .texto-opcion-tv { font-size: 21px; line-height: 1.35; color: #f8fafc; font-weight: 600; }
+
+    .opcion-verdadera { border-color: #22c55e !important; background: #14532d !important; transform: scale(1.02); }
+    .opcion-mentira { border-color: #ef4444 !important; background: #450a0a !important; }
+    .votos-detalle { font-size: 15px; font-weight: bold; margin-top: 8px; color: #fbbf24; }
+
+    /* POSICIONES */
+    .tabla-posiciones-tv {
+      background: #1e293b; border-radius: 14px; padding: 25px 40px; width: 100%; max-width: 700px;
+      display: flex; flex-direction: column; gap: 12px; border: 2px solid #334155;
+    }
+    .fila-equipo-puntos {
+      display: flex; justify-content: space-between; align-items: center; background: #0f172a;
+      padding: 12px 20px; border-radius: 8px; font-size: 20px; font-weight: 900;
+    }
+    .pts-badge { color: #38bdf8; font-size: 24px; }
+
+    /* ========================================================
+       2. VISTA CELULAR (CLIENTE)
+       ======================================================== */
+    #vista-celular {
+      display: none; flex-direction: column; height: 100vh; width: 100%; max-width: 450px;
+      margin: 0 auto; padding: 20px; justify-content: space-between; background: #0f172a;
+    }
+    .cel-header { text-align: center; }
+    .cel-header h2 { font-size: 24px; font-weight: 900; color: #fbbf24; }
+    .cel-team-name { font-size: 16px; color: #38bdf8; font-weight: bold; margin-top: 4px; }
+
+    .cel-card {
+      background: #1e293b; border: 1px solid #334155; border-radius: 14px; padding: 22px;
+      text-align: center; display: flex; flex-direction: column; gap: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    }
+    .cel-input-text {
+      width: 100%; padding: 14px; font-size: 18px; border-radius: 8px; border: 2px solid #475569;
+      background: #0f172a; color: #fff; outline: none; text-align: center;
+    }
+    .cel-textarea {
+      width: 100%; height: 120px; padding: 12px; font-size: 17px; border-radius: 8px; border: 2px solid #475569;
+      background: #0f172a; color: #fff; outline: none; resize: none; line-height: 1.4;
+    }
+    .cel-textarea:focus, .cel-input-text:focus { border-color: #38bdf8; }
+    .char-counter { font-size: 13px; color: #94a3b8; text-align: right; }
+
+    .btn-cel {
+      width: 100%; padding: 16px; font-size: 18px; font-weight: 900; border: none; border-radius: 8px;
+      background: #16a34a; color: #fff; cursor: pointer; box-shadow: 0 4px 12px rgba(22,163,74,0.4);
+    }
+    .btn-votar {
+      width: 100%; padding: 15px; font-size: 17px; font-weight: 900; border: none; border-radius: 8px;
+      background: #0284c7; color: #fff; cursor: pointer; text-align: left; display: flex; gap: 12px;
+    }
+    .btn-votar:disabled { background: #334155; color: #64748b; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+
+  <!-- ========================================================
+       1. VISTA TELEVISOR (PANTALLA PRINCIPAL)
+       ======================================================== -->
+  <div id="vista-tv">
+    <header>
+      <div class="titulo-tv">📖 EL JUEGO DEL DICCIONARIO</div>
+      <div class="sala-badge">SALA: <span id="tv-codigo-sala">----</span></div>
+    </header>
+
+    <main id="tv-main-container">
+      <!-- FASE 0: LOBBY -->
+      <div id="tv-fase-lobby" class="lobby-container">
+        <div class="qr-card">
+          <img id="qr-code" class="qr-img" src="" alt="QR">
+          <div class="codigo-texto">CÓDIGO: <span id="tv-codigo-grande">----</span></div>
+          <div style="font-size: 14px; color: #94a3b8;">Escanea con el celular para entrar</div>
+        </div>
+
+        <div class="equipos-lista-box">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="font-size: 20px; color: #38bdf8;">Equipos Unidos (<span id="cant-equipos">0</span> de 8):</h3>
+            <span style="font-size: 14px; color: #fbbf24;">Listo para jugar</span>
+          </div>
+          <div id="grid-equipos" class="equipos-grid"></div>
+          <button id="btn-iniciar-juego" class="btn-comenzar-partida" disabled onclick="iniciarPartida()">
+            🚀 COMENZAR JUEGO
+          </button>
+        </div>
+      </div>
+
+      <!-- FASE 1: ESCRITURA -->
+      <div id="tv-fase-escritura" class="caja-palabra-tv" style="display: none;">
+        <div style="font-size: 18px; color: #94a3b8; font-weight: bold; letter-spacing: 2px;">PALABRA A DEFINIR:</div>
+        <div id="tv-palabra-actual" class="palabra-gigante">CACUMEN</div>
+        <div id="tv-contador-envios" class="estado-envios">Esperando definiciones: 0 de 0</div>
+      </div>
+
+      <!-- FASE 2: VOTACIÓN -->
+      <div id="tv-fase-votacion" style="display: none; width: 100%;">
+        <div style="text-align: center; margin-bottom: 10px;">
+          <h2 style="font-size: 28px; color: #fbbf24; text-transform: uppercase;">¿Cuál es la definición real?</h2>
+          <div id="tv-palabra-votacion" style="font-size: 22px; font-weight: bold; color: #38bdf8;">Palabra: ---</div>
+        </div>
+        <div id="grid-opciones-tv" class="grilla-opciones-tv"></div>
+        <div style="display: flex; justify-content: center; gap: 15px; margin-top: 15px;">
+          <button id="btn-revelar-votos" class="btn-comenzar-partida" style="padding: 12px 30px; font-size: 18px;" onclick="revelarResultados()">
+            🎯 REVELAR RESPUESTAS Y PUNTOS (Enter)
+          </button>
+          <button id="btn-ver-posiciones" class="btn-comenzar-partida" style="display: none; padding: 12px 30px; font-size: 18px; background: #0284c7;" onclick="mostrarPosicionesTV()">
+            🏆 VER POSICIONES ACUMULADAS >>
+          </button>
+        </div>
+      </div>
+
+      <!-- FASE 3: POSICIONES -->
+      <div id="tv-fase-posiciones" style="display: none; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 20px;">
+        <h2 style="font-size: 30px; color: #fbbf24;">🏆 TABLA DE POSICIONES</h2>
+        <div id="lista-posiciones" class="tabla-posiciones-tv"></div>
+        <button class="btn-comenzar-partida" style="padding: 14px 40px;" onclick="siguienteRonda()">
+          SIGUIENTE PALABRA >> (Espacio)
+        </button>
+      </div>
+    </main>
+  </div>
+
+
+  <!-- ========================================================
+       2. VISTA CELULAR (CLIENTE)
+       ======================================================== -->
+  <div id="vista-celular">
+    <div class="cel-header">
+      <h2>📖 EL DICCIONARIO</h2>
+      <div id="cel-equipo-nombre" class="cel-team-name">Conectando...</div>
+    </div>
+
+    <!-- 1. Pantalla de Entrada / Nombre -->
+    <div id="cel-box-registro" class="cel-card">
+      <div style="font-size: 18px; font-weight: bold;">Nombre del Equipo / Pareja:</div>
+      <input type="text" id="input-nombre-equipo" class="cel-input-text" maxlength="20" placeholder="Ej: Los Campeones">
+      <button id="btn-unirse-cel" class="btn-cel" onclick="unirseAlLobby()">UNIRME AL JUEGO</button>
+      <div id="cel-status-conexion" style="font-size: 13px; color: #94a3b8;">Estableciendo conexión...</div>
+    </div>
+
+    <!-- 2. Pantalla de Escritura -->
+    <div id="cel-box-escritura" class="cel-card" style="display: none;">
+      <div style="font-size: 15px; color: #94a3b8; font-weight: bold;">PALABRA:</div>
+      <div id="cel-palabra-escribir" style="font-size: 28px; font-weight: 900; color: #fbbf24;">---</div>
+      <div style="font-size: 14px; color: #cbd5e1;">Escribe una definición creíble (máx. 140 letras):</div>
+      <textarea id="cel-textarea-def" class="cel-textarea" maxlength="140" oninput="actualizarContador(this)" placeholder="Ej: Instrumento utilizado para..."></textarea>
+      <div id="cel-char-count" class="char-counter">140 caracteres restantes</div>
+      <button class="btn-cel" onclick="enviarDefinicion()">ENVIAR DEFINICIÓN</button>
+    </div>
+
+    <!-- 3. Pantalla de Espera -->
+    <div id="cel-box-espera" class="cel-card" style="display: none;">
+      <div style="font-size: 40px;">⏳</div>
+      <div id="cel-txt-espera" style="font-size: 20px; font-weight: bold; color: #38bdf8;">¡Registrado!</div>
+      <div style="font-size: 14px; color: #94a3b8;">Mira la televisión mientras el conductor inicia la ronda.</div>
+    </div>
+
+    <!-- 4. Pantalla de Votación -->
+    <div id="cel-box-votacion" class="cel-card" style="display: none;">
+      <div style="font-size: 18px; font-weight: bold; color: #fbbf24;">Elige la definición del diccionario:</div>
+      <div id="cel-botones-voto" style="display: flex; flex-direction: column; gap: 10px;"></div>
+    </div>
+
+    <div style="text-align: center; font-size: 12px; color: #64748b;">Conexión directa en vivo</div>
+  </div>
+
+
+  <script>
+    // =========================================================================
+    // AQUÍ MODIFICAS O AGREGAS TUS PALABRAS DIRECTAMENTE EN EL CÓDIGO:
+    // =========================================================================
+    const PALABRAS_DICCIONARIO = [
+      { palabra: "CACUMEN", real: "Agudeza, o agilidad de la mente." },
+      { palabra: "BUSARDO", real: "Ave Rapaz." },
+      { palabra: "FLABELO", real: "Abanico con mango largo." },
+      { palabra: "MAGOSTAR", real: "Quemar las castañas en el magosto." },
+      { palabra: "PEDREÑAL", real: "Arma de fuego similar al trabuco." },
+      { palabra: "DILúCULO", real: "Crepúsculo matutino." },
+      { palabra: "ORBATO", real: "Depósito de agua fría del alambique." },
+      { palabra: "ADIVE", real: "Mamífero carnivoro parecido al zorro." },
+    ];
+
+    let indiceRonda = 0;
+    let equipos = {};
+    let opcionesRonda = [];
+    let faseJuego = "LOBBY";
+
+    const configPeer = {
+      config: {
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' },
+          { urls: 'stun:stun2.l.google.com:19302' }
+        ]
+      }
+    };
+
+    // --- SONIDOS ---
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function activarAudio() { if (audioCtx.state === 'suspended') audioCtx.resume(); }
+
+    function sonidoDing() {
+      activarAudio();
+      const now = audioCtx.currentTime;
+      const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+      osc.type = 'sine'; osc.frequency.setValueAtTime(659.25, now);
+      gain.gain.setValueAtTime(0.2, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start(now); osc.stop(now + 0.3);
+    }
+
+    function sonidoFanfarria() {
+      activarAudio();
+      const now = audioCtx.currentTime;
+      [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => {
+        const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+        osc.type = 'triangle'; osc.frequency.setValueAtTime(f, now + i * 0.09);
+        gain.gain.setValueAtTime(0.2, now + i * 0.09);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.09 + 0.35);
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.start(now + i * 0.09); osc.stop(now + i * 0.09 + 0.35);
+      });
+    }
+
+    // =========================================================================
+    // COMUNICACIÓN PEERJS
+    // =========================================================================
+    const hash = window.location.hash;
+    const esModoCelular = hash.startsWith('#celular');
+    let peer = null, connHost = null, conexionesClientes = {};
+    let miPeerId = null, nombrePendienteEnvio = null;
+
+    if (esModoCelular) {
+      document.getElementById("vista-tv").style.display = "none";
+      document.getElementById("vista-celular").style.display = "flex";
+
+      const salaConectar = hash.split('-')[1];
+      peer = new Peer(configPeer);
+
+      peer.on('open', (id) => {
+        miPeerId = id;
+        conectarConHost(salaConectar);
+      });
+
+      peer.on('error', () => {
+        document.getElementById("cel-status-conexion").innerText = "Reintentando conectar...";
+        setTimeout(() => conectarConHost(salaConectar), 1500);
+      });
+
+    } else {
+      const codigoSala = Math.floor(1000 + Math.random() * 9000);
+      document.getElementById("tv-codigo-sala").innerText = codigoSala;
+      document.getElementById("tv-codigo-grande").innerText = codigoSala;
+
+      const urlBase = window.location.href.split('#')[0];
+      const urlCelular = `${urlBase}#celular-${codigoSala}`;
+      document.getElementById("qr-code").src = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(urlCelular)}`;
+
+      peer = new Peer('DICCIONARIO-' + codigoSala, configPeer);
+
+      peer.on('connection', (conn) => {
+        conexionesClientes[conn.peer] = conn;
+        conn.on('data', (data) => manejarMensajeEnTV(conn.peer, data));
+        conn.on('close', () => {
+          delete equipos[conn.peer];
+          delete conexionesClientes[conn.peer];
+          actualizarLobbyTV();
+        });
+      });
+    }
+
+    // =========================================================================
+    // CELULAR
+    // =========================================================================
+    function conectarConHost(sala) {
+      connHost = peer.connect('DICCIONARIO-' + sala);
+      
+      connHost.on('open', () => {
+        document.getElementById("cel-status-conexion").innerText = "🟢 Conectado con la TV";
+        document.getElementById("cel-status-conexion").style.color = "#4ade80";
+        if (nombrePendienteEnvio) {
+          enviarNombreAhora(nombrePendienteEnvio);
+        }
+      });
+
+      connHost.on('data', manejarMensajeEnCelular);
+      connHost.on('close', () => {
+        document.getElementById("cel-status-conexion").innerText = "Desconectado. Reintentando...";
+        document.getElementById("cel-status-conexion").style.color = "#f87171";
+      });
+    }
+
+    function unirseAlLobby() {
+      const nombre = document.getElementById("input-nombre-equipo").value.trim();
+      if (!nombre) { alert("Escribe un nombre de equipo."); return; }
+
+      if (connHost && connHost.open) {
+        enviarNombreAhora(nombre);
+      } else {
+        nombrePendienteEnvio = nombre;
+        document.getElementById("btn-unirse-cel").innerText = "Conectando...";
+        document.getElementById("btn-unirse-cel").disabled = true;
+      }
+    }
+
+    function enviarNombreAhora(nombre) {
+      connHost.send({ tipo: 'UNIR_EQUIPO', nombre: nombre });
+      document.getElementById("cel-equipo-nombre").innerText = nombre;
+      document.getElementById("cel-box-registro").style.display = "none";
+      document.getElementById("cel-box-espera").style.display = "flex";
+      document.getElementById("cel-txt-espera").innerText = "¡Equipo conectado!";
+    }
+
+    function actualizarContador(el) {
+      const restantes = 140 - el.value.length;
+      document.getElementById("cel-char-count").innerText = `${restantes} caracteres restantes`;
+    }
+
+    function enviarDefinicion() {
+      const def = document.getElementById("cel-textarea-def").value.trim();
+      if (!def) { alert("Escribe una definición."); return; }
+      connHost.send({ tipo: 'ENVIO_DEFINICION', texto: def });
+
+      document.getElementById("cel-box-escritura").style.display = "none";
+      document.getElementById("cel-box-espera").style.display = "flex";
+      document.getElementById("cel-txt-espera").innerText = "¡Definición enviada!";
+    }
+
+    function enviarVoto(idxOpcion) {
+      connHost.send({ tipo: 'VOTO', idx: idxOpcion });
+      document.getElementById("cel-box-votacion").style.display = "none";
+      document.getElementById("cel-box-espera").style.display = "flex";
+      document.getElementById("cel-txt-espera").innerText = "¡Voto registrado!";
+    }
+
+    function manejarMensajeEnCelular(data) {
+      if (data.tipo === 'INICIAR_ESCRITURA') {
+        document.getElementById("cel-box-espera").style.display = "none";
+        document.getElementById("cel-box-votacion").style.display = "none";
+        document.getElementById("cel-box-escritura").style.display = "flex";
+        document.getElementById("cel-palabra-escribir").innerText = data.palabra;
+        document.getElementById("cel-textarea-def").value = "";
+        actualizarContador(document.getElementById("cel-textarea-def"));
+
+      } else if (data.tipo === 'INICIAR_VOTACION') {
+        document.getElementById("cel-box-espera").style.display = "none";
+        document.getElementById("cel-box-votacion").style.display = "flex";
+
+        const contBotones = document.getElementById("cel-botones-voto");
+        contBotones.innerHTML = "";
+        const letras = ["A","B","C","D","E","F","G","H","I"];
+
+        data.opciones.forEach((op, idx) => {
+          const btn = document.createElement("button");
+          btn.className = "btn-votar";
+          btn.innerHTML = `<b style="color: #fbbf24;">${letras[idx]}</b> <span>${op.texto}</span>`;
+
+          if (op.esMia) {
+            btn.disabled = true;
+            btn.innerHTML += `<br><small style="color: #94a3b8;">(Tu definición)</small>`;
+          } else {
+            btn.onclick = () => enviarVoto(idx);
+          }
+          contBotones.appendChild(btn);
+        });
+      }
+    }
+
+    // =========================================================================
+    // TELEVISOR
+    // =========================================================================
+    function manejarMensajeEnTV(peerId, data) {
+      if (data.tipo === 'UNIR_EQUIPO') {
+        equipos[peerId] = { nombre: data.nombre, puntos: 0, definicion: "", voto: null };
+        sonidoDing();
+        actualizarLobbyTV();
+
+      } else if (data.tipo === 'ENVIO_DEFINICION') {
+        if (equipos[peerId]) {
+          equipos[peerId].definicion = data.texto;
+          sonidoDing();
+          verificarEnviosDefiniciones();
+        }
+
+      } else if (data.tipo === 'VOTO') {
+        if (equipos[peerId]) {
+          equipos[peerId].voto = data.idx;
+          sonidoDing();
+          verificarVotosCompletos();
+        }
+      }
+    }
+
+    function actualizarLobbyTV() {
+      const keys = Object.keys(equipos);
+      document.getElementById("cant-equipos").innerText = keys.length;
+
+      const grid = document.getElementById("grid-equipos");
+      grid.innerHTML = "";
+      keys.forEach((k) => {
+        const el = document.createElement("div");
+        el.className = "equipo-badge-tv";
+        el.innerHTML = `<span>👥</span> <span>${equipos[k].nombre}</span>`;
+        grid.appendChild(el);
+      });
+
+      document.getElementById("btn-iniciar-juego").disabled = keys.length < 1;
+    }
+
+    function iniciarPartida() {
+      faseJuego = "ESCRITURA";
+      document.getElementById("tv-fase-lobby").style.display = "none";
+      cargarRondaTV(0);
+    }
+
+    function cargarRondaTV(idx) {
+      indiceRonda = idx;
+      faseJuego = "ESCRITURA";
+      const actual = PALABRAS_DICCIONARIO[idx];
+
+      // Resetear datos para la nueva ronda
+      Object.keys(equipos).forEach(k => {
+        equipos[k].definicion = "";
+        equipos[k].voto = null;
+      });
+
+      document.getElementById("tv-fase-votacion").style.display = "none";
+      document.getElementById("tv-fase-posiciones").style.display = "none";
+      document.getElementById("tv-fase-escritura").style.display = "block";
+
+      document.getElementById("tv-palabra-actual").innerText = actual.palabra;
+      actualizarContadorEnviosTV();
+
+      broadcast({ tipo: 'INICIAR_ESCRITURA', palabra: actual.palabra });
+    }
+
+    function actualizarContadorEnviosTV() {
+      const total = Object.keys(equipos).length;
+      const enviados = Object.values(equipos).filter(e => e.definicion !== "").length;
+      document.getElementById("tv-contador-envios").innerText = `Definiciones enviadas: ${enviados} de ${total}`;
+    }
+
+    function verificarEnviosDefiniciones() {
+      actualizarContadorEnviosTV();
+      const total = Object.keys(equipos).length;
+      const enviados = Object.values(equipos).filter(e => e.definicion !== "").length;
+
+      if (enviados >= total && total > 0) {
+        prepararVotacionTV();
+      }
+    }
+
+    function prepararVotacionTV() {
+      faseJuego = "VOTACION";
+      const actual = PALABRAS_DICCIONARIO[indiceRonda];
+
+      opcionesRonda = [];
+      opcionesRonda.push({ idAutor: 'DICCIONARIO', texto: actual.real, votosRecibidos: [] });
+
+      Object.keys(equipos).forEach(peerId => {
+        opcionesRonda.push({ idAutor: peerId, texto: equipos[peerId].definicion, votosRecibidos: [] });
+      });
+
+      opcionesRonda.sort(() => Math.random() - 0.5);
+
+      document.getElementById("tv-fase-escritura").style.display = "none";
+      document.getElementById("tv-fase-votacion").style.display = "block";
+      document.getElementById("tv-palabra-votacion").innerText = `Palabra: ${actual.palabra}`;
+
+      // RESETEAR BOTÓN DE VOTACIÓN PARA CADA RONDA
+      const btnRevelar = document.getElementById("btn-revelar-votos");
+      btnRevelar.style.display = "inline-block";
+      btnRevelar.style.background = "#16a34a";
+      btnRevelar.style.color = "#fff";
+      btnRevelar.innerText = "🎯 ESPERANDO VOTOS...";
+      document.getElementById("btn-ver-posiciones").style.display = "none";
+
+      const gridTV = document.getElementById("grid-opciones-tv");
+      gridTV.innerHTML = "";
+      const letras = ["A","B","C","D","E","F","G","H","I"];
+
+      opcionesRonda.forEach((op, idx) => {
+        const el = document.createElement("div");
+        el.className = "tarjeta-opcion-tv";
+        el.id = `tarjeta-op-${idx}`;
+        el.innerHTML = `
+          <div class="letra-opcion-badge">${letras[idx]}</div>
+          <div style="flex:1;">
+            <div class="texto-opcion-tv">${op.texto}</div>
+            <div id="votos-op-${idx}" class="votos-detalle"></div>
+          </div>
+        `;
+        gridTV.appendChild(el);
+      });
+
+      Object.keys(conexionesClientes).forEach(peerId => {
+        const opcionesParaCel = opcionesRonda.map(op => ({
+          texto: op.texto,
+          esMia: (op.idAutor === peerId)
+        }));
+        conexionesClientes[peerId].send({ tipo: 'INICIAR_VOTACION', opciones: opcionesParaCel });
+      });
+
+      verificarVotosCompletos();
+    }
+
+    function verificarVotosCompletos() {
+      const total = Object.keys(equipos).length;
+      const votaron = Object.values(equipos).filter(e => e.voto !== null).length;
+      if (votaron >= total && total > 0) {
+        const btn = document.getElementById("btn-revelar-votos");
+        btn.style.background = "#fbbf24";
+        btn.style.color = "#000";
+        btn.innerText = "🎯 TODOS VOTARON: REVELAR AHORA (Enter)";
+      }
+    }
+
+    function revelarResultados() {
+      faseJuego = "REVELADO";
+      sonidoFanfarria();
+
+      Object.keys(equipos).forEach(peerId => {
+        const votoIdx = equipos[peerId].voto;
+        if (votoIdx !== null && opcionesRonda[votoIdx]) {
+          opcionesRonda[votoIdx].votosRecibidos.push(equipos[peerId].nombre);
+        }
+      });
+
+      opcionesRonda.forEach((op, idx) => {
+        const tarjeta = document.getElementById(`tarjeta-op-${idx}`);
+        const detalle = document.getElementById(`votos-op-${idx}`);
+
+        if (op.idAutor === 'DICCIONARIO') {
+          tarjeta.classList.add("opcion-verdadera");
+          detalle.innerHTML = `⭐ <b>DEFINICIÓN REAL DEL DICCIONARIO (+2 pts)</b>`;
+          if (op.votosRecibidos.length > 0) {
+            detalle.innerHTML += `<br>Adivinaron: ${op.votosRecibidos.join(", ")}`;
+            Object.keys(equipos).forEach(k => {
+              if (equipos[k].voto === idx) equipos[k].puntos += 2;
+            });
+          }
+        } else {
+          tarjeta.classList.add("opcion-mentira");
+          const autor = equipos[op.idAutor] ? equipos[op.idAutor].nombre : "Equipo";
+          detalle.innerHTML = `🎭 <i>Inventada por: ${autor}</i>`;
+          if (op.votosRecibidos.length > 0) {
+            detalle.innerHTML += `<br>Engañó a: ${op.votosRecibidos.join(", ")} (+${op.votosRecibidos.length} pts)`;
+            if (equipos[op.idAutor]) equipos[op.idAutor].puntos += op.votosRecibidos.length;
+          }
+        }
+      });
+
+      document.getElementById("btn-revelar-votos").style.display = "none";
+      document.getElementById("btn-ver-posiciones").style.display = "inline-block";
+    }
+
+    function mostrarPosicionesTV() {
+      document.getElementById("tv-fase-votacion").style.display = "none";
+      document.getElementById("tv-fase-posiciones").style.display = "flex";
+
+      const ranking = Object.values(equipos).sort((a, b) => b.puntos - a.puntos);
+      const lista = document.getElementById("lista-posiciones");
+      lista.innerHTML = "";
+
+      ranking.forEach((eq, idx) => {
+        const el = document.createElement("div");
+        el.className = "fila-equipo-puntos";
+        el.innerHTML = `
+          <span>#${idx + 1} ${eq.nombre}</span>
+          <span class="pts-badge">${eq.puntos} pts</span>
+        `;
+        lista.appendChild(el);
+      });
+    }
+
+    function siguienteRonda() {
+      indiceRonda++;
+      if (indiceRonda >= PALABRAS_DICCIONARIO.length) {
+        alert("¡FIN DEL JUEGO! Han completado todas las palabras.");
+        location.reload();
+        return;
+      }
+      cargarRondaTV(indiceRonda);
+    }
+
+    function broadcast(data) {
+      Object.values(conexionesClientes).forEach(conn => {
+        if (conn.open) conn.send(data);
+      });
+    }
+
+    window.addEventListener("keydown", (e) => {
+      if (esModoCelular) return;
+      if (e.key === "Enter") {
+        if (faseJuego === "VOTACION") revelarResultados();
+      }
+      if (e.code === "Space") {
+        if (faseJuego === "REVELADO") {
+          e.preventDefault();
+          mostrarPosicionesTV();
+        }
+      }
+    });
+  </script>
+</body>
+</html>
